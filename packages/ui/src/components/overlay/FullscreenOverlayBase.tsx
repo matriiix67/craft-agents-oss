@@ -80,6 +80,8 @@ export interface FullscreenOverlayBaseProps {
   headerActions?: ReactNode
   /** When provided, renders a built-in copy button in the header right actions area */
   copyContent?: string
+  /** Whether the header should render its built-in close button */
+  showHeaderCloseButton?: boolean
 
   /** Optional error banner — rendered between header and children */
   error?: OverlayErrorBannerProps
@@ -104,6 +106,7 @@ export function FullscreenOverlayBase({
   subtitle,
   headerActions,
   copyContent,
+  showHeaderCloseButton = true,
   error,
 }: FullscreenOverlayBaseProps) {
   const { onSetTrafficLightsVisible } = usePlatform()
@@ -200,6 +203,7 @@ export function FullscreenOverlayBase({
                 subtitle={subtitle}
                 headerActions={headerActions}
                 copyContent={copyContent}
+                showHeaderCloseButton={showHeaderCloseButton}
               />
             </div>
           )}

@@ -48,6 +48,8 @@ export interface FullscreenOverlayBaseHeaderProps {
   headerActions?: ReactNode
   /** When provided, renders a built-in copy button (matching close button style) */
   copyContent?: string
+  /** Whether to render PreviewHeader's built-in close button */
+  showHeaderCloseButton?: boolean
 }
 
 /**
@@ -201,6 +203,7 @@ export function FullscreenOverlayBaseHeader({
   subtitle,
   headerActions,
   copyContent,
+  showHeaderCloseButton = true,
 }: FullscreenOverlayBaseHeaderProps) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
@@ -237,7 +240,11 @@ export function FullscreenOverlayBaseHeader({
   )
 
   return (
-    <PreviewHeader onClose={onClose} height={48} rightActions={rightActions}>
+    <PreviewHeader
+      onClose={showHeaderCloseButton ? onClose : undefined}
+      height={48}
+      rightActions={rightActions}
+    >
       {typeBadge && (
         <PreviewHeaderBadge
           icon={typeBadge.icon}

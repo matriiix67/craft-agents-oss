@@ -3,7 +3,7 @@
  *
  * Renders markdown content in a document-like format with:
  * - Centered content card with max-width
- * - Copy button via FullscreenOverlayBase's built-in copyContent prop
+ * - Card-scoped sticky copy/close actions
  * - Optional "Plan" header variant
  * - Optional filePath badge with dual-trigger menu (Open / Reveal in {file manager})
  *
@@ -11,7 +11,9 @@
  * Uses FullscreenOverlayBase for portal, traffic lights, ESC handling, and header.
  */
 
-import { ListTodo } from 'lucide-react'
+import { useCallback, useState } from 'react'
+import { Check, Copy, ListTodo, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Markdown } from '../markdown'
 import type { AnnotationV1 } from '@craft-agent/core'
 import type { ExternalOpenAnnotationRequest } from '../annotations/use-annotation-interaction-controller'
@@ -78,20 +80,54 @@ export function DocumentFormattedMarkdownOverlay({
   isStreaming = false,
   openAnnotationRequest,
 }: DocumentFormattedMarkdownOverlayProps) {
+  const { t } = useTranslation()
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(content)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }, [content])
+
   return (
     <FullscreenOverlayBase
       isOpen={isOpen}
       onClose={onClose}
       filePath={filePath}
       typeBadge={typeBadge}
-      copyContent={content}
+      showHeaderCloseButton={false}
       error={error ? { label: 'Write Failed', message: error } : undefined}
     >
       {/* Content wrapper — min-h-full for vertical centering within FullscreenOverlayBase's scroll container.
           Scrolling and gradient fade mask are handled by FullscreenOverlayBase. */}
       <div className="min-h-full flex flex-col justify-center px-6 py-16">
         {/* Content card - my-auto centers vertically when content is small, flows naturally when large */}
-        <div className="bg-background rounded-[16px] shadow-strong w-full max-w-[960px] h-fit mx-auto my-auto">
+        <div className="relative bg-background rounded-[16px] shadow-strong w-full max-w-[960px] h-fit mx-auto my-auto">
+          <div className="sticky top-[60px] z-20 flex justify-end gap-2 px-3 pt-3 -mb-10 pointer-events-none">
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="p-1.5 rounded-[6px] bg-background shadow-minimal cursor-pointer text-foreground/70 hover:text-foreground transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-ring pointer-events-auto"
+              title={copied ? t('common.copied') : t('common.copyAll')}
+              aria-label={copied ? t('common.copied') : t('common.copy')}
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-[6px] bg-background shadow-minimal cursor-pointer text-foreground/70 hover:text-foreground transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-ring pointer-events-auto"
+              title={t('common.closeEsc')}
+              aria-label={t('common.close')}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
           {/* Plan header (variant="plan" only) */}
           {variant === 'plan' && (
             <div className="px-4 py-2 border-b border-border/30 flex items-center gap-2 bg-success/5 rounded-t-[16px]">
@@ -101,7 +137,7 @@ export function DocumentFormattedMarkdownOverlay({
           )}
 
           {/* Content area */}
-          <div className="px-10 pt-8 pb-8">
+          <div className="pl-10 pr-20 pt-8 pb-8">
             <div className="text-sm">
               {messageId && onAddAnnotation ? (
                 <AnnotatableMarkdownDocument
