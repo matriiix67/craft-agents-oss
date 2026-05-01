@@ -13,6 +13,7 @@ import { PanelHeader } from '@/components/app-shell/PanelHeader'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { HeaderMenu } from '@/components/ui/HeaderMenu'
 import { EditPopover, EditButton, getEditConfig } from '@/components/ui/EditPopover'
+import { FontFamilyPicker } from '@/components/settings/FontFamilyPicker'
 import { useTheme } from '@/context/ThemeContext'
 import { useAppShellContext } from '@/context/AppShellContext'
 import { routes } from '@/lib/navigate'
@@ -271,13 +272,9 @@ export default function AppearanceSettingsPage() {
                     />
                   </SettingsRow>
                   <SettingsRow label={t("settings.appearance.font")}>
-                    <SettingsSegmentedControl
+                    <FontFamilyPicker
                       value={font}
                       onValueChange={setFont}
-                      options={[
-                        { value: 'inter', label: t("settings.appearance.fontInter") },
-                        { value: 'system', label: t("settings.appearance.fontSystem") },
-                      ]}
                     />
                   </SettingsRow>
                   <SettingsRow label={t("settings.appearance.language")}>

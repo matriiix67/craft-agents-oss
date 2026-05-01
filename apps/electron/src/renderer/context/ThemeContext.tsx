@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react'
 import * as storage from '@/lib/local-storage'
 import {
+  applyFontPreferenceToRoot,
+  normalizeStoredFont,
+  type FontPreference,
+} from '@/lib/font-preference'
+import {
   resolveTheme,
   themeToCSS,
   DEFAULT_THEME,
@@ -12,7 +17,7 @@ import {
 } from '@config/theme'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
-export type FontFamily = 'inter' | 'system'
+export type FontFamily = FontPreference
 
 interface ThemeContextType {
   // Preferences (persisted at app level)
@@ -130,7 +135,7 @@ export function ThemeProvider({
     }
     return defaultColorTheme // Will be updated by config.json effect
   })
-  const [font, setFontState] = useState<FontFamily>(stored?.font ?? defaultFont)
+  const [font, setFontState] = useState<FontFamily>(normalizeStoredFont(stored?.font) ?? defaultFont)
   const [systemPreference, setSystemPreference] = useState<'light' | 'dark'>(getSystemPreference)
   const [previewColorTheme, setPreviewColorTheme] = useState<string | null>(null)
 
@@ -287,12 +292,7 @@ export function ThemeProvider({
   useEffect(() => {
     const root = document.documentElement
 
-    // Apply font
-    if (font === 'inter') {
-      root.dataset.font = 'inter'
-    } else {
-      delete root.dataset.font
-    }
+    applyFontPreferenceToRoot(root, font)
 
     // Apply color theme data attribute
     if (effectiveColorTheme && effectiveColorTheme !== 'default') {
@@ -414,15 +414,16 @@ export function ThemeProvider({
     if (!window.electronAPI?.onThemePreferencesChange) return
 
     const cleanup = window.electronAPI.onThemePreferencesChange((preferences) => {
+      const safeFont = normalizeStoredFont(preferences.font) ?? 'system'
       isExternalUpdate.current = true
       setModeState(preferences.mode as ThemeMode)
       setColorThemeState(preferences.colorTheme)
-      setFontState(preferences.font as FontFamily)
+      setFontState(safeFont)
       // When syncing from another window, mark as user override since user explicitly changed theme
       saveTheme({
         mode: preferences.mode as ThemeMode,
         colorTheme: preferences.colorTheme,
-        font: preferences.font as FontFamily,
+        font: safeFont,
         isUserOverride: true
       })
       setTimeout(() => {

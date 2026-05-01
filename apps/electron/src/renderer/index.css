@@ -379,6 +379,10 @@ html[data-font="inter"] {
   font-feature-settings: "cv01", "cv02", "cv03", "cv04", "case";
 }
 
+html[data-font="custom"] {
+  font-optical-sizing: auto;
+}
+
 /* Theme integration for Tailwind v4 */
 @theme inline {
   /* === 6 BASE COLORS === */
