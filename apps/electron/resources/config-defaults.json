@@ -10,7 +10,8 @@
     "keepAwakeWhileRunning": false,
     "richToolDescriptions": true,
     "extendedPromptCache": false,
-    "browserToolEnabled": true
+    "browserToolEnabled": true,
+    "bashToolTimeoutMs": 600000
   },
   "workspaceDefaults": {
     "thinkingLevel": "think",

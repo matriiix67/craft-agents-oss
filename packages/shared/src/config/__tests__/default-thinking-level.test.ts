@@ -49,6 +49,9 @@ function setupWorkspaceConfigDir() {
         spellCheck: false,
         keepAwakeWhileRunning: false,
         richToolDescriptions: true,
+        extendedPromptCache: false,
+        browserToolEnabled: true,
+        bashToolTimeoutMs: 600000,
       },
       workspaceDefaults: {
         thinkingLevel: 'off',

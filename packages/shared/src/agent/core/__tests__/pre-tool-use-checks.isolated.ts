@@ -317,7 +317,7 @@ describe('runPreToolUseChecks', () => {
     it('skips source check for non-MCP tools', () => {
       const result = runPreToolUseChecks(createInput({
         toolName: 'Bash',
-        input: { command: 'ls' },
+        input: { command: 'ls', timeout: 30_000 },
       }));
 
       expect(result.type).toBe('allow');
@@ -438,6 +438,42 @@ describe('runPreToolUseChecks', () => {
       expect(result.type).toBe('allow');
     });
 
+    it('sets the default Bash timeout when missing', () => {
+      const result = runPreToolUseChecks(createInput({
+        toolName: 'Bash',
+        input: { command: 'ls' },
+        bashToolTimeoutMs: 600_000,
+      }));
+
+      expect(result.type).toBe('modify');
+      if (result.type === 'modify') {
+        expect(result.input.timeout).toBe(600_000);
+      }
+    });
+
+    it('clamps oversized Bash timeouts', () => {
+      const result = runPreToolUseChecks(createInput({
+        toolName: 'Bash',
+        input: { command: 'sleep 30', timeout: 1_800_000 },
+        bashToolTimeoutMs: 600_000,
+      }));
+
+      expect(result.type).toBe('modify');
+      if (result.type === 'modify') {
+        expect(result.input.timeout).toBe(600_000);
+      }
+    });
+
+    it('keeps smaller Bash timeouts unchanged', () => {
+      const result = runPreToolUseChecks(createInput({
+        toolName: 'Bash',
+        input: { command: 'ls', timeout: 30_000 },
+        bashToolTimeoutMs: 600_000,
+      }));
+
+      expect(result.type).toBe('allow');
+    });
+
     it('strips _intent and _displayName metadata', () => {
       const result = runPreToolUseChecks(createInput({
         toolName: 'mcp__linear__createIssue',
@@ -528,7 +564,7 @@ describe('runPreToolUseChecks', () => {
 
       const result = runPreToolUseChecks(createInput({
         toolName: 'Bash',
-        input: { command: 'python3 scripts/update.py automations.json' },
+        input: { command: 'python3 scripts/update.py automations.json', timeout: 30_000 },
         permissionMode: 'allow-all',
       }));
 
@@ -622,7 +658,7 @@ describe('runPreToolUseChecks', () => {
     it('allows bash craft-agent label commands through labels guard', () => {
       const result = runPreToolUseChecks(createInput({
         toolName: 'Bash',
-        input: { command: 'craft-agent label list' },
+        input: { command: 'craft-agent label list', timeout: 30_000 },
         permissionMode: 'allow-all',
       }));
 
@@ -648,7 +684,7 @@ describe('runPreToolUseChecks', () => {
     it('allows bash craft-agent automation commands through config-domain bash guard', () => {
       const result = runPreToolUseChecks(createInput({
         toolName: 'Bash',
-        input: { command: 'craft-agent automation list' },
+        input: { command: 'craft-agent automation list', timeout: 30_000 },
         permissionMode: 'allow-all',
       }));
 
@@ -660,7 +696,7 @@ describe('runPreToolUseChecks', () => {
 
       const result = runPreToolUseChecks(createInput({
         toolName: 'Bash',
-        input: { command: 'python3 scripts/update.py automations.json' },
+        input: { command: 'python3 scripts/update.py automations.json', timeout: 30_000 },
         permissionMode: 'allow-all',
       }));
 
@@ -670,7 +706,7 @@ describe('runPreToolUseChecks', () => {
     it('does not block unrelated non-workspace labels paths in bash commands', () => {
       const result = runPreToolUseChecks(createInput({
         toolName: 'Bash',
-        input: { command: 'python3 script.py /tmp/labels/config.json' },
+        input: { command: 'python3 script.py /tmp/labels/config.json', timeout: 30_000 },
         permissionMode: 'allow-all',
       }));
 
@@ -733,7 +769,7 @@ describe('runPreToolUseChecks', () => {
 
       const result = runPreToolUseChecks(createInput({
         toolName: 'Bash',
-        input: { command: 'rm -rf /' },
+        input: { command: 'rm -rf /', timeout: 30_000 },
         permissionMode: 'allow-all',
       }));
 
@@ -773,7 +809,7 @@ describe('runPreToolUseChecks', () => {
     it('omits modifiedInput in prompt when no transforms applied', () => {
       const result = runPreToolUseChecks(createInput({
         toolName: 'Bash',
-        input: { command: 'npm test' },
+        input: { command: 'npm test', timeout: 30_000 },
         permissionMode: 'ask',
       }));
 

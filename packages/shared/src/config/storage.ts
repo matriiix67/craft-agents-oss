@@ -74,6 +74,7 @@ export interface StoredConfig {
   richToolDescriptions?: boolean;  // Add intent/action metadata to all tool calls (default: true)
   // Tools
   browserToolEnabled?: boolean;  // Enable built-in browser tool (default: true). Disable for Playwright/Puppeteer.
+  bashToolTimeoutMs?: number;  // Maximum Bash tool timeout in milliseconds (default: 10 minutes).
   // Prompt caching & context
   extendedPromptCache?: boolean;  // Use 1h prompt cache TTL instead of 5m (default: false)
   enable1MContext?: boolean;  // Enable 1M context window for supported models (default: false — opt-in; requires Anthropic Tier 4+)
@@ -118,6 +119,7 @@ const FALLBACK_CONFIG_DEFAULTS: ConfigDefaults = {
     richToolDescriptions: true,
     extendedPromptCache: false,
     browserToolEnabled: true,
+    bashToolTimeoutMs: 10 * 60 * 1000,
   },
   workspaceDefaults: {
     thinkingLevel: 'medium',
@@ -474,6 +476,40 @@ export function setBrowserToolEnabled(enabled: boolean): void {
   // Clear session tool caches so all sessions pick up the change immediately.
   // Lazy import to avoid circular dependency (storage ← session-scoped-tools ← storage).
   import('../agent/session-scoped-tools.ts').then(m => m.invalidateAllSessionToolsCaches()).catch(() => {});
+}
+
+const MIN_BASH_TOOL_TIMEOUT_MS = 60 * 1000;
+const MAX_BASH_TOOL_TIMEOUT_MS = 60 * 60 * 1000;
+const FALLBACK_BASH_TOOL_TIMEOUT_MS = 10 * 60 * 1000;
+
+function normalizeBashToolTimeoutMs(timeoutMs: unknown): number {
+  if (typeof timeoutMs !== 'number' || !Number.isFinite(timeoutMs)) {
+    return FALLBACK_BASH_TOOL_TIMEOUT_MS;
+  }
+  return Math.min(MAX_BASH_TOOL_TIMEOUT_MS, Math.max(MIN_BASH_TOOL_TIMEOUT_MS, Math.round(timeoutMs)));
+}
+
+/**
+ * Get the maximum Bash tool timeout in milliseconds.
+ * Defaults to 10 minutes if not set.
+ */
+export function getBashToolTimeoutMs(): number {
+  const config = loadStoredConfig();
+  if (config?.bashToolTimeoutMs !== undefined) {
+    return normalizeBashToolTimeoutMs(config.bashToolTimeoutMs);
+  }
+  const defaults = loadConfigDefaults();
+  return normalizeBashToolTimeoutMs(defaults.defaults.bashToolTimeoutMs);
+}
+
+/**
+ * Set the maximum Bash tool timeout in milliseconds.
+ */
+export function setBashToolTimeoutMs(timeoutMs: number): void {
+  const config = loadStoredConfig();
+  if (!config) return;
+  config.bashToolTimeoutMs = normalizeBashToolTimeoutMs(timeoutMs);
+  saveConfig(config);
 }
 
 /**

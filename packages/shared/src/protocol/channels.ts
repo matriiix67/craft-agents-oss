@@ -310,6 +310,8 @@ export const RPC_CHANNELS = {
   tools: {
     GET_BROWSER_TOOL_ENABLED: 'tools:getBrowserToolEnabled',
     SET_BROWSER_TOOL_ENABLED: 'tools:setBrowserToolEnabled',
+    GET_BASH_TOOL_TIMEOUT: 'tools:getBashToolTimeout',
+    SET_BASH_TOOL_TIMEOUT: 'tools:setBashToolTimeout',
   },
   caching: {
     GET_EXTENDED_PROMPT_CACHE: 'caching:getExtendedPromptCache',

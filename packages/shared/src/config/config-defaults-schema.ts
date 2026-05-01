@@ -21,6 +21,7 @@ export interface ConfigDefaults {
     richToolDescriptions: boolean;
     extendedPromptCache: boolean;
     browserToolEnabled: boolean;
+    bashToolTimeoutMs: number;
   };
   workspaceDefaults: {
     thinkingLevel: ThinkingLevel;

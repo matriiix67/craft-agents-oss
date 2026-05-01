@@ -39,6 +39,8 @@ export const HANDLED_CHANNELS = [
   RPC_CHANNELS.settings.SET_DEFAULT_THINKING_LEVEL,
   RPC_CHANNELS.tools.GET_BROWSER_TOOL_ENABLED,
   RPC_CHANNELS.tools.SET_BROWSER_TOOL_ENABLED,
+  RPC_CHANNELS.tools.GET_BASH_TOOL_TIMEOUT,
+  RPC_CHANNELS.tools.SET_BASH_TOOL_TIMEOUT,
   RPC_CHANNELS.settings.GET_NETWORK_PROXY,
   RPC_CHANNELS.dialog.OPEN_FOLDER,
 ] as const
@@ -325,6 +327,16 @@ export function registerSettingsHandlers(server: RpcServer, deps: HandlerDeps): 
   server.handle(RPC_CHANNELS.tools.SET_BROWSER_TOOL_ENABLED, async (_ctx, enabled: boolean) => {
     const { setBrowserToolEnabled } = await import('@craft-agent/shared/config/storage')
     setBrowserToolEnabled(enabled)
+  })
+
+  server.handle(RPC_CHANNELS.tools.GET_BASH_TOOL_TIMEOUT, async () => {
+    const { getBashToolTimeoutMs } = await import('@craft-agent/shared/config/storage')
+    return getBashToolTimeoutMs()
+  })
+
+  server.handle(RPC_CHANNELS.tools.SET_BASH_TOOL_TIMEOUT, async (_ctx, timeoutMs: number) => {
+    const { setBashToolTimeoutMs } = await import('@craft-agent/shared/config/storage')
+    setBashToolTimeoutMs(timeoutMs)
   })
 
   // ============================================================

@@ -11,7 +11,7 @@
  * 2. Source blocking: Block tools from inactive MCP sources
  * 3. Prerequisite check: Block source tools until guide.md is read
  * 4. call_llm detection: Intercept mcp__session__call_llm
- * 5. Input transforms: Path expansion, config validation, skill qualification, metadata stripping
+ * 5. Input transforms: Path expansion, Bash timeout clamp, config validation, skill qualification, metadata stripping
  * 6. Ask-mode prompt decision: Determine if user approval is needed
  */
 
@@ -77,6 +77,13 @@ export interface MetadataStrippingResult {
   /** Whether metadata was stripped */
   modified: boolean;
   /** The cleaned input */
+  input: Record<string, unknown>;
+}
+
+export interface BashTimeoutClampResult {
+  /** Whether the Bash timeout was added or clamped */
+  modified: boolean;
+  /** The updated input */
   input: Record<string, unknown>;
 }
 
@@ -322,6 +329,47 @@ export function stripToolMetadata(
  * @deprecated Use stripToolMetadata instead. This alias is kept for backwards compatibility.
  */
 export const stripMcpMetadata = stripToolMetadata;
+
+// ============================================================
+// BASH TIMEOUT CLAMP
+// ============================================================
+
+const DEFAULT_BASH_TOOL_TIMEOUT_MS = 10 * 60 * 1000;
+
+export function clampBashToolTimeout(
+  toolName: string,
+  input: Record<string, unknown>,
+  maxTimeoutMs = DEFAULT_BASH_TOOL_TIMEOUT_MS,
+  onDebug?: (message: string) => void
+): BashTimeoutClampResult {
+  if (toolName !== 'Bash') {
+    return { modified: false, input };
+  }
+
+  const normalizedMaxTimeoutMs =
+    typeof maxTimeoutMs === 'number' && Number.isFinite(maxTimeoutMs) && maxTimeoutMs > 0
+      ? Math.round(maxTimeoutMs)
+      : DEFAULT_BASH_TOOL_TIMEOUT_MS;
+  const currentTimeout = input.timeout;
+
+  if (
+    typeof currentTimeout === 'number' &&
+    Number.isFinite(currentTimeout) &&
+    currentTimeout > 0 &&
+    currentTimeout <= normalizedMaxTimeoutMs
+  ) {
+    return { modified: false, input };
+  }
+
+  const nextInput = { ...input, timeout: normalizedMaxTimeoutMs };
+  if (typeof currentTimeout === 'number' && Number.isFinite(currentTimeout) && currentTimeout > normalizedMaxTimeoutMs) {
+    onDebug?.(`Clamped Bash timeout from ${currentTimeout}ms to ${normalizedMaxTimeoutMs}ms`);
+  } else {
+    onDebug?.(`Set Bash timeout to ${normalizedMaxTimeoutMs}ms`);
+  }
+
+  return { modified: true, input: nextInput };
+}
 
 // ============================================================
 // CONFIG FILE VALIDATION
@@ -633,6 +681,8 @@ export interface PreToolUseInput {
   prerequisiteManager?: PrerequisiteManagerLike;
   /** Backend metadata (from Codex fork params.metadata or Copilot input.metadata) */
   backendMetadata?: { intent?: string; displayName?: string };
+  /** Maximum Bash tool timeout in milliseconds */
+  bashToolTimeoutMs?: number;
   /** Debug callback */
   onDebug?: (message: string) => void;
 }
@@ -674,7 +724,7 @@ const FILE_WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
  * 2. Source blocking (inactive MCP sources)
  * 3. Prerequisite check (guide.md before source tools)
  * 4. call_llm interception
- * 5. Input transforms (paths, config validation, skills, metadata)
+ * 5. Input transforms (paths, Bash timeout, config validation, skills, metadata)
  * 6. Ask-mode prompt decision
  *
  * @returns A discriminated union that the agent translates to its SDK format
@@ -709,6 +759,7 @@ export function runPreToolUseChecks(ctx: PreToolUseInput): PreToolUseCheckResult
     permissionManager,
     prerequisiteManager,
     backendMetadata,
+    bashToolTimeoutMs,
     onDebug,
   } = ctx;
 
@@ -804,7 +855,14 @@ export function runPreToolUseChecks(ctx: PreToolUseInput): PreToolUseCheckResult
     wasModified = true;
   }
 
-  // 5b. Config-domain Bash guard (block direct labels/automations path operations unless using craft-agent)
+  // 5b. Bash timeout clamp
+  const bashTimeoutResult = clampBashToolTimeout(toolName, currentInput, bashToolTimeoutMs, onDebug);
+  if (bashTimeoutResult.modified) {
+    currentInput = bashTimeoutResult.input;
+    wasModified = true;
+  }
+
+  // 5c. Config-domain Bash guard (block direct labels/automations path operations unless using craft-agent)
   if (FEATURE_FLAGS.craftAgentsCli && toolName === 'Bash') {
     const configDomainBashRedirect = getConfigDomainBashRedirect(currentInput, workspaceRootPath, workingDirectory);
     if (configDomainBashRedirect) {
@@ -812,13 +870,13 @@ export function runPreToolUseChecks(ctx: PreToolUseInput): PreToolUseCheckResult
     }
   }
 
-  // 5c. Config file validation
+  // 5d. Config file validation
   const configResult = validateConfigWrite(toolName, currentInput, workspaceRootPath, onDebug);
   if (!configResult.valid) {
     return { type: 'block', reason: configResult.error! };
   }
 
-  // 5d. Config file CLI redirect (labels + automations)
+  // 5e. Config file CLI redirect (labels + automations)
   if (FEATURE_FLAGS.craftAgentsCli) {
     const cliRedirect = getConfigCliRedirect(toolName, currentInput, workspaceRootPath, workingDirectory);
     if (cliRedirect) {
@@ -826,7 +884,7 @@ export function runPreToolUseChecks(ctx: PreToolUseInput): PreToolUseCheckResult
     }
   }
 
-  // 5e. Skill qualification
+  // 5f. Skill qualification
   if (toolName === 'Skill') {
     const skillResult = qualifySkillName(
       currentInput,
@@ -841,7 +899,7 @@ export function runPreToolUseChecks(ctx: PreToolUseInput): PreToolUseCheckResult
     }
   }
 
-  // 5f. Metadata stripping
+  // 5g. Metadata stripping
   const metadataResult = stripToolMetadata(toolName, currentInput, onDebug);
   if (metadataResult.modified) {
     currentInput = metadataResult.input;

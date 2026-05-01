@@ -5,6 +5,7 @@
  *
  * Settings:
  * - Notifications
+ * - Tools
  * - Network (proxy)
  * - About (version, updates)
  *
@@ -17,6 +18,7 @@ import { useTranslation } from 'react-i18next'
 import { PanelHeader } from '@/components/app-shell/PanelHeader'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { HeaderMenu } from '@/components/ui/HeaderMenu'
 import { routes } from '@/lib/navigate'
 import { Spinner } from '@craft-agent/ui'
@@ -55,6 +57,10 @@ const EMPTY_PROXY_FORM: ProxyFormState = {
   httpsProxy: '',
   noProxy: '',
 }
+
+const BASH_TIMEOUT_MINUTES_MIN = 1
+const BASH_TIMEOUT_MINUTES_MAX = 60
+const MS_PER_MINUTE = 60 * 1000
 
 function toProxyFormState(settings?: NetworkProxySettings): ProxyFormState {
   if (!settings) return EMPTY_PROXY_FORM
@@ -103,6 +109,7 @@ export default function AppSettingsPage() {
 
   // Tools state
   const [browserToolEnabled, setBrowserToolEnabled] = useState(true)
+  const [bashToolTimeoutMinutes, setBashToolTimeoutMinutes] = useState('10')
 
   // Proxy state
   const [proxyForm, setProxyForm] = useState<ProxyFormState>(EMPTY_PROXY_FORM)
@@ -128,15 +135,17 @@ export default function AppSettingsPage() {
   const loadSettings = useCallback(async () => {
     if (!window.electronAPI) return
     try {
-      const [notificationsOn, keepAwakeOn, browserToolOn, proxySettings] = await Promise.all([
+      const [notificationsOn, keepAwakeOn, browserToolOn, bashToolTimeoutMs, proxySettings] = await Promise.all([
         window.electronAPI.getNotificationsEnabled(),
         window.electronAPI.getKeepAwakeWhileRunning(),
         window.electronAPI.getBrowserToolEnabled(),
+        window.electronAPI.getBashToolTimeoutMs(),
         window.electronAPI.getNetworkProxySettings(),
       ])
       setNotificationsEnabled(notificationsOn)
       setKeepAwakeEnabled(keepAwakeOn)
       setBrowserToolEnabled(browserToolOn)
+      setBashToolTimeoutMinutes(String(Math.round(bashToolTimeoutMs / MS_PER_MINUTE)))
       const form = toProxyFormState(proxySettings)
       setProxyForm(form)
       setSavedProxyForm(form)
@@ -147,7 +156,7 @@ export default function AppSettingsPage() {
 
   useEffect(() => {
     loadSettings()
-  }, [])
+  }, [loadSettings])
 
   const handleNotificationsEnabledChange = useCallback(async (enabled: boolean) => {
     setNotificationsEnabled(enabled)
@@ -163,6 +172,26 @@ export default function AppSettingsPage() {
     setBrowserToolEnabled(enabled)
     await window.electronAPI.setBrowserToolEnabled(enabled)
   }, [])
+
+  const handleBashToolTimeoutMinutesChange = useCallback(async (value: string) => {
+    if (!/^\d*$/.test(value)) return
+    setBashToolTimeoutMinutes(value)
+
+    const minutes = Number(value)
+    if (!Number.isInteger(minutes) || minutes < BASH_TIMEOUT_MINUTES_MIN || minutes > BASH_TIMEOUT_MINUTES_MAX) {
+      return
+    }
+    await window.electronAPI.setBashToolTimeoutMs(minutes * MS_PER_MINUTE)
+  }, [])
+
+  const normalizeBashToolTimeoutMinutes = useCallback(async () => {
+    const minutes = Number(bashToolTimeoutMinutes)
+    const normalized = Number.isInteger(minutes)
+      ? Math.min(BASH_TIMEOUT_MINUTES_MAX, Math.max(BASH_TIMEOUT_MINUTES_MIN, minutes))
+      : 10
+    setBashToolTimeoutMinutes(String(normalized))
+    await window.electronAPI.setBashToolTimeoutMs(normalized * MS_PER_MINUTE)
+  }, [bashToolTimeoutMinutes])
 
   // Proxy handlers
   const isProxyDirty = useMemo(() => {
@@ -239,6 +268,25 @@ export default function AppSettingsPage() {
                     checked={browserToolEnabled}
                     onCheckedChange={handleBrowserToolEnabledChange}
                   />
+                  <SettingsRow
+                    label={t("settings.tools.bashTimeout")}
+                    description={t("settings.tools.bashTimeoutDesc")}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={BASH_TIMEOUT_MINUTES_MIN}
+                        max={BASH_TIMEOUT_MINUTES_MAX}
+                        step={1}
+                        value={bashToolTimeoutMinutes}
+                        onChange={(event) => handleBashToolTimeoutMinutesChange(event.target.value)}
+                        onBlur={normalizeBashToolTimeoutMinutes}
+                        className="w-20 bg-muted/50 border-0 shadow-minimal focus-visible:ring-0 focus-visible:outline-none focus-visible:bg-background"
+                        aria-label={t("settings.tools.bashTimeout")}
+                      />
+                      <span className="text-sm text-muted-foreground">{t("settings.tools.minutes")}</span>
+                    </div>
+                  </SettingsRow>
                 </SettingsCard>
               </SettingsSection>
 

@@ -298,6 +298,8 @@ export const CHANNEL_MAP = {
   // Tools settings
   getBrowserToolEnabled: invoke(RPC_CHANNELS.tools.GET_BROWSER_TOOL_ENABLED),
   setBrowserToolEnabled: invoke(RPC_CHANNELS.tools.SET_BROWSER_TOOL_ENABLED),
+  getBashToolTimeoutMs: invoke(RPC_CHANNELS.tools.GET_BASH_TOOL_TIMEOUT),
+  setBashToolTimeoutMs: invoke(RPC_CHANNELS.tools.SET_BASH_TOOL_TIMEOUT),
 
   // Prompt caching & context
   getExtendedPromptCache: invoke(RPC_CHANNELS.caching.GET_EXTENDED_PROMPT_CACHE),
